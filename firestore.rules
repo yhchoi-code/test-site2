@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    // [수정 필수] example[.]org를 재단 이메일 도메인의 정규식으로 바꾸세요.
+    // 예: company.or.kr -> company[.]or[.]kr
+    function isFoundationEmail() {
+      return signedIn()
+        && request.auth.token.email is string
+        && request.auth.token.email.matches('^[^@]+@example[.]org$');
+    }
+    function verifiedEmployee() {
+      return isFoundationEmail() && request.auth.token.email_verified == true;
+    }
+    function isAdmin() {
+      return verifiedEmployee()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'approved';
+    }
+
+    match /users/{uid} {
+      // 본인은 자신의 상태만, 승인된 관리자는 모든 계정을 조회할 수 있습니다.
+      allow get: if (signedIn() && request.auth.uid == uid) || isAdmin();
+      allow list: if isAdmin();
+
+      // 가입자가 자신의 승인 상태/권한을 마음대로 정할 수 없도록 제한합니다.
+      allow create: if isFoundationEmail()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'status', 'createdAt'])
+        && request.resource.data.keys().hasAll(['name', 'email', 'role', 'status', 'createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role == 'member'
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time;
+
+      // 관리자도 승인 상태만 변경 가능. 'role' 수정은 관리자 콘솔에서만 합니다.
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in ['approved', 'rejected', 'suspended'];
+      allow delete: if false;
+    }
+
+    // 이 예제에서 쓰지 않는 컬렉션은 전부 차단합니다.
+    match /{document=**} { allow read, write: if false; }
+  }
+}
