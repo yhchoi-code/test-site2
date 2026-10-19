@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D 생각 정원</title>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --bg: #07101f;
+      --panel: rgba(10, 20, 38, 0.88);
+      --panel-2: rgba(19, 32, 54, 0.9);
+      --line: rgba(148, 163, 184, 0.18);
+      --text: #e8eef9;
+      --muted: #9aa8bd;
+      --accent: #67e8f9;
+      --accent-2: #8b5cf6;
+      --danger: #fb7185;
+      --shadow: 0 18px 55px rgba(0, 0, 0, 0.36);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 30% 20%, rgba(37, 99, 235, 0.18), transparent 32%),
+        radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.14), transparent 30%),
+        var(--bg);
+      color: var(--text);
+      font-family: Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
+    }
+
+    button, input, textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.055);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 9px 12px;
+      cursor: pointer;
+      transition: 0.18s ease;
+      white-space: nowrap;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(103, 232, 249, 0.45);
+      background: rgba(103, 232, 249, 0.10);
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, #0891b2, #6d28d9);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    button.danger:hover {
+      border-color: rgba(251, 113, 133, 0.55);
+      background: rgba(251, 113, 133, 0.12);
+    }
+
+    input, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: rgba(2, 8, 23, 0.72);
+      color: var(--text);
+      border-radius: 10px;
+      outline: none;
+      padding: 11px 12px;
+    }
+
+    input:focus, textarea:focus {
+      border-color: rgba(103, 232, 249, 0.6);
+      box-shadow: 0 0 0 3px rgba(103, 232, 249, 0.10);
+    }
+
+    textarea {
+      min-height: 170px;
+      resize: vertical;
+      line-height: 1.55;
+    }
+
+    #app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    #scene {
+      position: absolute;
+      inset: 0;
+    }
+
+    #scene canvas {
+      display: block;
+    }
+
+    .topbar {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 354px;
+      z-index: 20;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: rgba(7, 16, 31, 0.74);
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow);
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 0 8px 0 2px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+    }
+
+    .brand-dot {
+      width: 13px;
+      height: 13px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      box-shadow: 0 0 22px rgba(103, 232, 249, 0.7);
+    }
+
+    .divider {
+      width: 1px;
+      align-self: stretch;
+      background: var(--line);
+      flex: 0 0 auto;
+    }
+
+    .search-wrap {
+      position: relative;
+      min-width: 210px;
+      margin-left: auto;
+    }
+
+    .search-wrap input {
+      height: 39px;
+      padding-right: 36px;
+    }
+
+    .search-count {
+      position: absolute;
+      top: 50%;
+      right: 10px;
+      transform: translateY(-50%);
+      font-size: 11px;
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    .side-panel {
+      position: absolute;
+      z-index: 20;
+      top: 16px;
+      right: 16px;
+      bottom: 16px;
+      width: 322px;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      overflow: hidden;
+      background: var(--panel);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-head {
+      padding: 18px 18px 14px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.045), transparent);
+    }
+
+    .panel-head h2 {
+      margin: 0 0 5px;
+      font-size: 17px;
+    }
+
+    .panel-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 18px 20px;
+    }
+
+    .field {
+      margin-bottom: 15px;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 7px;
+      color: #cbd5e1;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .row > * {
+      flex: 1;
+    }
+
+    .color-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    input[type="color"] {
+      width: 52px;
+      height: 42px;
+      padding: 4px;
+      cursor: pointer;
+    }
+
+    .meta-card {
+      margin-top: 18px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.035);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    .panel-foot {
+      padding: 13px 18px 17px;
+      border-top: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .statusbar {
+      position: absolute;
+      z-index: 12;
+      left: 16px;
+      bottom: 16px;
+      max-width: calc(100% - 386px);
+      padding: 10px 13px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(7, 16, 31, 0.72);
+      color: var(--muted);
+      backdrop-filter: blur(12px);
+      font-size: 12px;
+      pointer-events: none;
+    }
+
+    .node-label {
+      transform: translate(-50%, -50%);
+      max-width: 210px;
+      padding: 7px 10px;
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 999px;
+      background: rgba(7, 16, 31, 0.84);
+      color: #f8fafc;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.25;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+      user-select: none;
+      pointer-events: none;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+    }
+
+    .node-label.selected {
+      border-color: rgba(103, 232, 249, 0.78);
+      box-shadow: 0 0 0 3px rgba(103, 232, 249, 0.11), 0 8px 24px rgba(0,0,0,0.3);
+      transform: translate(-50%, -50%) scale(1.08);
+    }
+
+    .help {
+      position: absolute;
+      z-index: 14;
+      left: 16px;
+      top: 92px;
+      width: 240px;
+      padding: 13px 14px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(7, 16, 31, 0.72);
+      color: var(--muted);
+      backdrop-filter: blur(12px);
+      font-size: 12px;
+      line-height: 1.65;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .help.hidden {
+      opacity: 0;
+      transform: translateY(-8px);
+      pointer-events: none;
+    }
+
+    .help strong {
+      color: var(--text);
+    }
+
+    .mobile-panel-btn {
+      display: none;
+    }
+
+    .toast {
+      position: absolute;
+      z-index: 100;
+      left: 50%;
+      bottom: 28px;
+      transform: translate(-50%, 18px);
+      padding: 11px 16px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: rgba(15, 23, 42, 0.94);
+      color: var(--text);
+      opacity: 0;
+      pointer-events: none;
+      transition: 0.22s ease;
+      box-shadow: var(--shadow);
+      font-size: 13px;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    .file-input {
+      display: none;
+    }
+
+    @media (max-width: 980px) {
+      .topbar {
+        right: 16px;
+      }
+
+      .side-panel {
+        width: min(90vw, 330px);
+        transform: translateX(calc(100% + 24px));
+        transition: transform 0.22s ease;
+      }
+
+      .side-panel.open {
+        transform: translateX(0);
+      }
+
+      .mobile-panel-btn {
+        display: inline-flex;
+      }
+
+      .statusbar {
+        max-width: calc(100% - 32px);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .topbar {
+        top: 8px;
+        left: 8px;
+        right: 8px;
+        border-radius: 12px;
+      }
+
+      .brand span:last-child,
+      .divider {
+        display: none;
+      }
+
+      .search-wrap {
+        min-width: 160px;
+      }
+
+      .help {
+        top: auto;
+        bottom: 58px;
+        left: 8px;
+        width: 220px;
+      }
+
+      .statusbar {
+        left: 8px;
+        bottom: 8px;
+        max-width: calc(100% - 16px);
+      }
+
+      .side-panel {
+        top: 8px;
+        right: 8px;
+        bottom: 8px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <div id="scene"></div>
+
+    <div class="topbar">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <span>3D 생각 정원</span>
+      </div>
+
+      <div class="divider"></div>
+
+      <button id="addChildBtn" class="primary">＋ 하위 메모</button>
+      <button id="addSiblingBtn">＋ 같은 단계</button>
+      <button id="focusBtn">선택 위치로</button>
+      <button id="layoutBtn">자동 정렬</button>
+      <button id="helpBtn">사용법</button>
+      <button id="panelBtn" class="mobile-panel-btn">편집창</button>
+
+      <div class="search-wrap">
+        <input id="searchInput" type="search" placeholder="메모 검색  / 키" />
+        <span id="searchCount" class="search-count"></span>
+      </div>
+    </div>
+
+    <aside id="sidePanel" class="side-panel">
+      <div class="panel-head">
+        <h2>선택한 메모 편집</h2>
+        <p>구를 클릭해 선택하고 내용을 수정하세요. 위치는 구를 드래그해 직접 옮길 수 있습니다.</p>
+      </div>
+
+      <div class="panel-body">
+        <div class="field">
+          <label for="titleInput">제목</label>
+          <input id="titleInput" maxlength="80" placeholder="메모 제목" />
+        </div>
+
+        <div class="field">
+          <label for="noteInput">상세 메모</label>
+          <textarea id="noteInput" maxlength="4000" placeholder="생각, 아이디어, 할 일 등을 자유롭게 적으세요."></textarea>
+        </div>
+
+        <div class="field">
+          <label>노드 색상</label>
+          <div class="color-row">
+            <input id="colorInput" type="color" value="#22d3ee" />
+            <button id="autoColorBtn">단계별 자동색</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <button id="saveEditBtn" class="primary">변경 저장</button>
+          <button id="deleteBtn" class="danger">삭제</button>
+        </div>
+
+        <div id="metaCard" class="meta-card"></div>
+      </div>
+
+      <div class="panel-foot">
+        <button id="exportBtn">JSON 내보내기</button>
+        <button id="importBtn">JSON 불러오기</button>
+        <button id="saveNowBtn">브라우저 저장</button>
+        <button id="resetBtn" class="danger">전체 초기화</button>
+      </div>
+    </aside>
+
+    <div id="helpBox" class="help">
+      <strong>조작 방법</strong><br />
+      빈 공간 드래그: 화면 회전<br />
+      마우스 휠: 확대·축소<br />
+      우클릭 드래그: 화면 이동<br />
+      구 드래그: 메모 위치 이동<br />
+      구 더블클릭: 제목 편집<br />
+      <strong>N</strong>: 하위 메모 추가 · <strong>/</strong>: 검색
+    </div>
+
+    <div id="statusbar" class="statusbar">
+      메모를 클릭해 선택하세요.
+    </div>
+
+    <div id="toast" class="toast"></div>
+    <input id="fileInput" class="file-input" type="file" accept=".json,application/json" />
+  </div>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+    import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
+
+    const STORAGE_KEY = "three-dimensional-memo-garden-v1";
+
+    const palette = [
+      "#22d3ee",
+      "#8b5cf6",
+      "#f472b6",
+      "#f59e0b",
+      "#34d399",
+      "#60a5fa",
+      "#fb7185"
+    ];
+
+    const $ = (selector) => document.querySelector(selector);
+
+    const sceneHost = $("#scene");
+    const titleInput = $("#titleInput");
+    const noteInput = $("#noteInput");
+    const colorInput = $("#colorInput");
+    const metaCard = $("#metaCard");
+    const statusbar = $("#statusbar");
+    const searchInput = $("#searchInput");
+    const searchCount = $("#searchCount");
+    const helpBox = $("#helpBox");
+    const toastEl = $("#toast");
+    const sidePanel = $("#sidePanel");
+    const fileInput = $("#fileInput");
+
+    let selectedId = null;
+    let state = loadState();
+    let meshes = new Map();
+    let labels = new Map();
+    let lines = new Map();
+    let pointerDown = null;
+    let dragged = false;
+    let dragNodeId = null;
+    let toastTimer = null;
+    let saveTimer = null;
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x07101f, 0.0027);
+
+    const camera = new THREE.PerspectiveCamera(
+      56,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      2200
+    );
+    camera.position.set(0, 40, 115);
+
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      powerPreference: "high-performance"
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.domElement.style.touchAction = "none";
+    sceneHost.appendChild(renderer.domElement);
+
+    const labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    labelRenderer.domElement.style.position = "absolute";
+    labelRenderer.domElement.style.inset = "0";
+    labelRenderer.domElement.style.pointerEvents = "none";
+    sceneHost.appendChild(labelRenderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.065;
+    controls.minDistance = 20;
+    controls.maxDistance = 480;
+    controls.target.set(0, 0, 0);
+    controls.mouseButtons = {
+      LEFT: THREE.MOUSE.ROTATE,
+      MIDDLE: THREE.MOUSE.DOLLY,
+      RIGHT: THREE.MOUSE.PAN
+    };
+
+    const ambient = new THREE.HemisphereLight(0xbdefff, 0x1f1440, 1.65);
+    scene.add(ambient);
+
+    const keyLight = new THREE.PointLight(0x67e8f9, 1700, 400);
+    keyLight.position.set(55, 70, 65);
+    scene.add(keyLight);
+
+    const fillLight = new THREE.PointLight(0x8b5cf6, 1250, 350);
+    fillLight.position.set(-75, -15, -55);
+    scene.add(fillLight);
+
+    const nodeGroup = new THREE.Group();
+    const lineGroup = new THREE.Group();
+    scene.add(lineGroup, nodeGroup);
+
+    addBackgroundStars();
+    rebuildScene();
+
+    selectedId = state.nodes[0]?.id ?? null;
+    applySelection(selectedId, false);
+    focusSelected(false);
+    animate();
+
+    function defaultState() {
+      const now = new Date().toISOString();
+      return {
+        version: 1,
+        nodes: [
+          {
+            id: crypto.randomUUID(),
+            parentId: null,
+            title: "나의 중심 주제",
+            note: "이 메모를 중심으로 생각의 가지를 확장해 보세요.",
+            color: palette[0],
+            x: 0, y: 0, z: 0,
+            createdAt: now,
+            updatedAt: now
+          }
+        ]
+      };
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return defaultState();
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.nodes) || parsed.nodes.length === 0) {
+          return defaultState();
+        }
+        return parsed;
+      } catch (error) {
+        console.warn("저장 데이터 불러오기 실패:", error);
+        return defaultState();
+      }
+    }
+
+    function scheduleSave() {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveState, 220);
+    }
+
+    function saveState(showMessage = false) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      if (showMessage) toast("브라우저에 저장했습니다.");
+    }
+
+    function addBackgroundStars() {
+      const count = 1150;
+      const geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(count * 3);
+
+      for (let i = 0; i < count; i++) {
+        const radius = 280 + Math.random() * 850;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+
+        positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+        positions[i * 3 + 1] = radius * Math.cos(phi);
+        positions[i * 3 + 2] = radius * Math.sin(phi) * Math.sin(theta);
+      }
+
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+
+      const material = new THREE.PointsMaterial({
+        color: 0x8da9d6,
+        size: 1.25,
+        transparent: true,
+        opacity: 0.42,
+        sizeAttenuation: true
+      });
+
+      scene.add(new THREE.Points(geometry, material));
+    }
+
+    function getDepth(nodeId) {
+      let depth = 0;
+      let current = findNode(nodeId);
+      const visited = new Set();
+
+      while (current?.parentId && !visited.has(current.id)) {
+        visited.add(current.id);
+        depth++;
+        current = findNode(current.parentId);
+      }
+      return depth;
+    }
+
+    function findNode(id) {
+      return state.nodes.find((node) => node.id === id);
+    }
+
+    function childrenOf(id) {
+      return state.nodes.filter((node) => node.parentId === id);
+    }
+
+    function descendantsOf(id) {
+      const result = [];
+      const queue = [id];
+
+      while (queue.length) {
+        const current = queue.shift();
+        for (const child of childrenOf(current)) {
+          result.push(child.id);
+          queue.push(child.id);
+        }
+      }
+
+      return result;
+    }
+
+    function rebuildScene() {
+      for (const mesh of meshes.values()) {
+        mesh.geometry.dispose();
+        mesh.material.dispose();
+      }
+
+      for (const line of lines.values()) {
+        line.geometry.dispose();
+        line.material.dispose();
+      }
+
+      nodeGroup.clear();
+      lineGroup.clear();
+      meshes.clear();
+      labels.clear();
+      lines.clear();
+
+      for (const node of state.nodes) {
+        createVisualNode(node);
+      }
+
+      for (const node of state.nodes) {
+        if (node.parentId && findNode(node.parentId)) {
+          createConnection(node);
+        }
+      }
+
+      updateConnections();
+    }
+
+    function createVisualNode(node) {
+      const depth = getDepth(node.id);
+      const radius = depth === 0 ? 5.3 : Math.max(2.5, 4.0 - depth * 0.22);
+      const geometry = new THREE.SphereGeometry(radius, 28, 22);
+      const material = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(node.color || palette[depth % palette.length]),
+        roughness: 0.35,
+        metalness: 0.16,
+        emissive: new THREE.Color(node.color || palette[depth % palette.length]),
+        emissiveIntensity: depth === 0 ? 0.35 : 0.15,
+        transparent: true,
+        opacity: 0.96
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(node.x || 0, node.y || 0, node.z || 0);
+      mesh.userData.nodeId = node.id;
+      mesh.userData.baseScale = depth === 0 ? 1.07 : 1;
+      mesh.scale.setScalar(mesh.userData.baseScale);
+
+      const halo = new THREE.Mesh(
+        new THREE.SphereGeometry(radius * 1.55, 20, 16),
+        new THREE.MeshBasicMaterial({
+          color: node.color || palette[depth % palette.length],
+          transparent: true,
+          opacity: depth === 0 ? 0.08 : 0.03,
+          depthWrite: false,
+          side: THREE.BackSide
+        })
+      );
+      halo.userData.isHalo = true;
+      mesh.add(halo);
+
+      const labelEl = document.createElement("div");
+      labelEl.className = "node-label";
+      labelEl.textContent = node.title || "제목 없음";
+
+      const labelObject = new CSS2DObject(labelEl);
+      labelObject.position.set(0, radius + 3.4, 0);
+      mesh.add(labelObject);
+
+      nodeGroup.add(mesh);
+      meshes.set(node.id, mesh);
+      labels.set(node.id, labelEl);
+    }
+
+    function createConnection(childNode) {
+      const geometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(),
+        new THREE.Vector3()
+      ]);
+
+      const material = new THREE.LineBasicMaterial({
+        color: new THREE.Color(childNode.color || "#67e8f9"),
+        transparent: true,
+        opacity: 0.38
+      });
+
+      const line = new THREE.Line(geometry, material);
+      line.userData.childId = childNode.id;
+      lineGroup.add(line);
+      lines.set(childNode.id, line);
+    }
+
+    function updateConnections() {
+      for (const [childId, line] of lines.entries()) {
+        const child = findNode(childId);
+        if (!child) continue;
+
+        const parentMesh = meshes.get(child.parentId);
+        const childMesh = meshes.get(child.id);
+        if (!parentMesh || !childMesh) continue;
+
+        const positions = line.geometry.attributes.position;
+        positions.setXYZ(0, parentMesh.position.x, parentMesh.position.y, parentMesh.position.z);
+        positions.setXYZ(1, childMesh.position.x, childMesh.position.y, childMesh.position.z);
+        positions.needsUpdate = true;
+        line.geometry.computeBoundingSphere();
+      }
+    }
+
+    function applySelection(id, centerPanel = true) {
+      const node = findNode(id);
+      if (!node) return;
+
+      selectedId = id;
+
+      for (const [nodeId, mesh] of meshes.entries()) {
+        const selected = nodeId === id;
+        const base = mesh.userData.baseScale || 1;
+        mesh.scale.setScalar(selected ? base * 1.28 : base);
+        mesh.material.emissiveIntensity = selected ? 0.72 : (getDepth(nodeId) === 0 ? 0.35 : 0.15);
+
+        const label = labels.get(nodeId);
+        if (label) label.classList.toggle("selected", selected);
+      }
+
+      titleInput.value = node.title || "";
+      noteInput.value = node.note || "";
+      colorInput.value = normalizeHex(node.color || palette[getDepth(id) % palette.length]);
+
+      const childCount = childrenOf(id).length;
+      const depth = getDepth(id);
+      const created = formatDate(node.createdAt);
+      const updated = formatDate(node.updatedAt);
+
+      metaCard.innerHTML = `
+        단계: <strong>${depth}</strong><br />
+        직접 연결된 하위 메모: <strong>${childCount}개</strong><br />
+        전체 하위 메모: <strong>${descendantsOf(id).length}개</strong><br />
+        생성: ${created}<br />
+        수정: ${updated}
+      `;
+
+      statusbar.textContent = `선택: ${node.title} · 단계 ${depth} · 하위 메모 ${childCount}개`;
+
+      if (centerPanel && window.innerWidth <= 980) {
+        sidePanel.classList.add("open");
+      }
+    }
+
+    function normalizeHex(value) {
+      const color = new THREE.Color(value);
+      return `#${color.getHexString()}`;
+    }
+
+    function formatDate(value) {
+      if (!value) return "-";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "-";
+      return new Intl.DateTimeFormat("ko-KR", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      }).format(date);
+    }
+
+    function addNode(parentId) {
+      const parent = findNode(parentId);
+      if (!parent) return;
+
+      const title = window.prompt("새 메모의 제목을 입력하세요.", "새로운 생각");
+      if (title === null) return;
+
+      const depth = getDepth(parentId) + 1;
+      const siblingIndex = childrenOf(parentId).length;
+      const angle = siblingIndex * 2.399963229728653 + hashString(parentId) * 0.01;
+      const radius = 30 + Math.min(depth * 4, 18);
+      const elevation = ((siblingIndex % 5) - 2) * 0.22;
+      const horizontal = Math.cos(elevation) * radius;
+      const now = new Date().toISOString();
+
+      const node = {
+        id: crypto.randomUUID(),
+        parentId,
+        title: title.trim() || "제목 없음",
+        note: "",
+        color: palette[depth % palette.length],
+        x: parent.x + Math.cos(angle) * horizontal,
+        y: parent.y + Math.sin(elevation) * radius,
+        z: parent.z + Math.sin(angle) * horizontal,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      state.nodes.push(node);
+      createVisualNode(node);
+      createConnection(node);
+      applySelection(node.id);
+      scheduleSave();
+      toast("하위 메모를 추가했습니다.");
+    }
+
+    function addSibling() {
+      const node = findNode(selectedId);
+      if (!node) return;
+
+      if (!node.parentId) {
+        addNode(node.id);
+        toast("중심 주제는 같은 단계가 없어 하위 메모로 추가했습니다.");
+        return;
+      }
+
+      addNode(node.parentId);
+    }
+
+    function saveSelectedEdits() {
+      const node = findNode(selectedId);
+      if (!node) return;
+
+      node.title = titleInput.value.trim() || "제목 없음";
+      node.note = noteInput.value.trim();
+      node.color = colorInput.value;
+      node.updatedAt = new Date().toISOString();
+
+      const mesh = meshes.get(node.id);
+      if (mesh) {
+        mesh.material.color.set(node.color);
+        mesh.material.emissive.set(node.color);
+        const halo = mesh.children.find((child) => child.userData?.isHalo);
+        if (halo) halo.material.color.set(node.color);
+      }
+
+      const label = labels.get(node.id);
+      if (label) label.textContent = node.title;
+
+      const line = lines.get(node.id);
+      if (line) line.material.color.set(node.color);
+
+      applySelection(node.id, false);
+      saveState();
+      toast("메모를 저장했습니다.");
+    }
+
+    function deleteSelected() {
+      const node = findNode(selectedId);
+      if (!node) return;
+
+      if (!node.parentId) {
+        toast("중심 주제는 삭제할 수 없습니다.");
+        return;
+      }
+
+      const descendants = descendantsOf(node.id);
+      const count = descendants.length + 1;
+
+      if (!window.confirm(`"${node.title}"과 연결된 메모 ${count}개를 삭제할까요?`)) return;
+
+      const parentId = node.parentId;
+      const removeIds = new Set([node.id, ...descendants]);
+      state.nodes = state.nodes.filter((item) => !removeIds.has(item.id));
+
+      rebuildScene();
+      applySelection(parentId, false);
+      saveState();
+      toast(`${count}개의 메모를 삭제했습니다.`);
+    }
+
+    function autoColorSelected() {
+      const node = findNode(selectedId);
+      if (!node) return;
+      colorInput.value = palette[getDepth(node.id) % palette.length];
+      saveSelectedEdits();
+    }
+
+    function autoLayout() {
+      const root = state.nodes.find((node) => !node.parentId) || state.nodes[0];
+      if (!root) return;
+
+      root.x = 0;
+      root.y = 0;
+      root.z = 0;
+
+      const queue = [root.id];
+      const visited = new Set([root.id]);
+
+      while (queue.length) {
+        const parentId = queue.shift();
+        const parent = findNode(parentId);
+        const children = childrenOf(parentId);
+        const depth = getDepth(parentId) + 1;
+        const count = children.length;
+
+        children.forEach((child, index) => {
+          if (visited.has(child.id)) return;
+          visited.add(child.id);
+          queue.push(child.id);
+
+          const base = hashString(parentId) * 0.0009;
+          const angle = base + index * (Math.PI * 2 / Math.max(count, 1));
+          const spread = count > 1 ? (index / (count - 1) - 0.5) : 0;
+          const elevation = spread * 1.05 + Math.sin(base + depth) * 0.15;
+          const radius = 30 + Math.min(depth * 5, 26);
+
+          child.x = parent.x + Math.cos(angle) * Math.cos(elevation) * radius;
+          child.y = parent.y + Math.sin(elevation) * radius;
+          child.z = parent.z + Math.sin(angle) * Math.cos(elevation) * radius;
+        });
+      }
+
+      relaxPositions(root.id, 70);
+
+      for (const node of state.nodes) {
+        const mesh = meshes.get(node.id);
+        if (mesh) mesh.position.set(node.x, node.y, node.z);
+      }
+
+      updateConnections();
+      saveState();
+      focusAll();
+      toast("메모 구조를 3D 공간에 다시 정렬했습니다.");
+    }
+
+    function relaxPositions(rootId, iterations) {
+      const nodes = state.nodes;
+      const velocity = new Map(nodes.map((node) => [node.id, new THREE.Vector3()]));
+
+      for (let step = 0; step < iterations; step++) {
+        const forces = new Map(nodes.map((node) => [node.id, new THREE.Vector3()]));
+
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) {
+            const a = nodes[i];
+            const b = nodes[j];
+            const delta = new THREE.Vector3(b.x - a.x, b.y - a.y, b.z - a.z);
+            let dist = delta.length();
+            if (dist < 0.001) {
+              delta.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
+              dist = delta.length();
+            }
+
+            if (dist < 23) {
+              const strength = (23 - dist) * 0.028;
+              delta.normalize().multiplyScalar(strength);
+              forces.get(a.id).addScaledVector(delta, -1);
+              forces.get(b.id).add(delta);
+            }
+          }
+        }
+
+        for (const node of nodes) {
+          if (!node.parentId) continue;
+          const parent = findNode(node.parentId);
+          if (!parent) continue;
+
+          const delta = new THREE.Vector3(node.x - parent.x, node.y - parent.y, node.z - parent.z);
+          const dist = Math.max(delta.length(), 0.001);
+          const target = 30 + Math.min(getDepth(node.id) * 4, 22);
+          const strength = (dist - target) * 0.0065;
+          delta.normalize().multiplyScalar(strength);
+
+          forces.get(node.id).addScaledVector(delta, -1);
+          forces.get(parent.id).add(delta);
+        }
+
+        for (const node of nodes) {
+          if (node.id === rootId) continue;
+
+          const v = velocity.get(node.id);
+          v.multiplyScalar(0.76).add(forces.get(node.id));
+          node.x += v.x;
+          node.y += v.y;
+          node.z += v.z;
+        }
+      }
+    }
+
+    function focusSelected(animateMove = true) {
+      const mesh = meshes.get(selectedId);
+      if (!mesh) return;
+
+      const target = mesh.position.clone();
+      const direction = camera.position.clone().sub(controls.target).normalize();
+      const distance = Math.max(42, camera.position.distanceTo(controls.target) * 0.55);
+      const destination = target.clone().add(direction.multiplyScalar(distance));
+
+      if (!animateMove) {
+        controls.target.copy(target);
+        camera.position.copy(destination);
+        controls.update();
+        return;
+      }
+
+      tweenCamera(target, destination);
+    }
+
+    function focusAll() {
+      if (state.nodes.length === 0) return;
+
+      const box = new THREE.Box3();
+      for (const mesh of meshes.values()) box.expandByPoint(mesh.position);
+
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3()).length();
+      const distance = Math.max(70, size * 1.15);
+      const direction = new THREE.Vector3(0.75, 0.55, 1).normalize();
+      const destination = center.clone().add(direction.multiplyScalar(distance));
+
+      tweenCamera(center, destination);
+    }
+
+    function tweenCamera(target, destination) {
+      const startTarget = controls.target.clone();
+      const startPos = camera.position.clone();
+      const startedAt = performance.now();
+      const duration = 520;
+
+      function step(now) {
+        const t = Math.min(1, (now - startedAt) / duration);
+        const eased = 1 - Math.pow(1 - t, 3);
+        controls.target.lerpVectors(startTarget, target, eased);
+        camera.position.lerpVectors(startPos, destination, eased);
+        controls.update();
+
+        if (t < 1) requestAnimationFrame(step);
+      }
+
+      requestAnimationFrame(step);
+    }
+
+    function hashString(value) {
+      let hash = 2166136261;
+      for (let i = 0; i < value.length; i++) {
+        hash ^= value.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+      }
+      return Math.abs(hash);
+    }
+
+    function exportJson() {
+      saveState();
+      const blob = new Blob([JSON.stringify(state, null, 2)], {
+        type: "application/json"
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `3d-memo-garden-${new Date().toISOString().slice(0, 10)}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      toast("JSON 백업 파일을 만들었습니다.");
+    }
+
+    function importJson(file) {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(reader.result);
+          if (!parsed || !Array.isArray(parsed.nodes) || parsed.nodes.length === 0) {
+            throw new Error("올바른 메모 데이터가 아닙니다.");
+          }
+
+          const ids = new Set(parsed.nodes.map((node) => node.id));
+          parsed.nodes = parsed.nodes.map((node, index) => ({
+            id: node.id || crypto.randomUUID(),
+            parentId: index === 0 ? null : (ids.has(node.parentId) ? node.parentId : parsed.nodes[0].id),
+            title: String(node.title || "제목 없음"),
+            note: String(node.note || ""),
+            color: normalizeHex(node.color || palette[index % palette.length]),
+            x: Number(node.x) || 0,
+            y: Number(node.y) || 0,
+            z: Number(node.z) || 0,
+            createdAt: node.createdAt || new Date().toISOString(),
+            updatedAt: node.updatedAt || new Date().toISOString()
+          }));
+
+          state = { version: 1, nodes: parsed.nodes };
+          selectedId = state.nodes[0].id;
+          rebuildScene();
+          applySelection(selectedId, false);
+          saveState();
+          focusAll();
+          toast("JSON 메모를 불러왔습니다.");
+        } catch (error) {
+          alert(`불러오기에 실패했습니다.\n${error.message}`);
+        } finally {
+          fileInput.value = "";
+        }
+      };
+
+      reader.readAsText(file, "utf-8");
+    }
+
+    function resetAll() {
+      if (!window.confirm("모든 메모를 초기화할까요? 이 작업은 되돌릴 수 없습니다.")) return;
+      state = defaultState();
+      selectedId = state.nodes[0].id;
+      rebuildScene();
+      applySelection(selectedId, false);
+      saveState();
+      focusSelected(false);
+      toast("새로운 생각 정원을 만들었습니다.");
+    }
+
+    function performSearch(query) {
+      const value = query.trim().toLowerCase();
+      const matches = [];
+
+      for (const node of state.nodes) {
+        const hit = !value ||
+          node.title.toLowerCase().includes(value) ||
+          node.note.toLowerCase().includes(value);
+
+        if (value && hit) matches.push(node.id);
+
+        const mesh = meshes.get(node.id);
+        const label = labels.get(node.id);
+
+        if (mesh) {
+          mesh.material.opacity = hit ? 0.96 : 0.16;
+        }
+        if (label) {
+          label.style.opacity = hit ? "1" : "0.16";
+        }
+      }
+
+      for (const [childId, line] of lines.entries()) {
+        const child = findNode(childId);
+        const hit = !value || matches.includes(childId) || matches.includes(child?.parentId);
+        line.material.opacity = hit ? 0.38 : 0.05;
+      }
+
+      searchCount.textContent = value ? `${matches.length}건` : "";
+      return matches;
+    }
+
+    function toast(message) {
+      clearTimeout(toastTimer);
+      toastEl.textContent = message;
+      toastEl.classList.add("show");
+      toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1900);
+    }
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    const dragPlane = new THREE.Plane();
+    const dragOffset = new THREE.Vector3();
+
+    function updatePointer(event) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    }
+
+    function intersectNode(event) {
+      updatePointer(event);
+      raycaster.setFromCamera(pointer, camera);
+
+      const hits = raycaster.intersectObjects([...meshes.values()], false);
+      return hits[0] || null;
+    }
+
+    renderer.domElement.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+
+      pointerDown = { x: event.clientX, y: event.clientY };
+      dragged = false;
+
+      const hit = intersectNode(event);
+      if (!hit) {
+        dragNodeId = null;
+        return;
+      }
+
+      dragNodeId = hit.object.userData.nodeId;
+      applySelection(dragNodeId, false);
+
+      const mesh = meshes.get(dragNodeId);
+      const cameraDirection = new THREE.Vector3();
+      camera.getWorldDirection(cameraDirection);
+      dragPlane.setFromNormalAndCoplanarPoint(cameraDirection, mesh.position);
+
+      const point = new THREE.Vector3();
+      raycaster.ray.intersectPlane(dragPlane, point);
+      dragOffset.copy(mesh.position).sub(point);
+    });
+
+    renderer.domElement.addEventListener("pointermove", (event) => {
+      if (!pointerDown || !dragNodeId) return;
+
+      const moved = Math.hypot(
+        event.clientX - pointerDown.x,
+        event.clientY - pointerDown.y
+      );
+
+      if (moved < 4 && !dragged) return;
+
+      dragged = true;
+      controls.enabled = false;
+
+      updatePointer(event);
+      raycaster.setFromCamera(pointer, camera);
+
+      const point = new THREE.Vector3();
+      if (!raycaster.ray.intersectPlane(dragPlane, point)) return;
+
+      const mesh = meshes.get(dragNodeId);
+      const node = findNode(dragNodeId);
+      if (!mesh || !node) return;
+
+      point.add(dragOffset);
+      mesh.position.copy(point);
+      node.x = point.x;
+      node.y = point.y;
+      node.z = point.z;
+      node.updatedAt = new Date().toISOString();
+      updateConnections();
+    });
+
+    window.addEventListener("pointerup", () => {
+      if (dragged && dragNodeId) {
+        scheduleSave();
+        applySelection(dragNodeId, false);
+      }
+
+      controls.enabled = true;
+      pointerDown = null;
+      dragNodeId = null;
+      dragged = false;
+    });
+
+    renderer.domElement.addEventListener("click", (event) => {
+      if (dragged) return;
+      const hit = intersectNode(event);
+      if (hit) applySelection(hit.object.userData.nodeId);
+    });
+
+    renderer.domElement.addEventListener("dblclick", (event) => {
+      const hit = intersectNode(event);
+      if (!hit) return;
+
+      applySelection(hit.object.userData.nodeId);
+      sidePanel.classList.add("open");
+      titleInput.focus();
+      titleInput.select();
+    });
+
+    renderer.domElement.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+    });
+
+    $("#addChildBtn").addEventListener("click", () => addNode(selectedId));
+    $("#addSiblingBtn").addEventListener("click", addSibling);
+    $("#focusBtn").addEventListener("click", () => focusSelected(true));
+    $("#layoutBtn").addEventListener("click", autoLayout);
+    $("#saveEditBtn").addEventListener("click", saveSelectedEdits);
+    $("#deleteBtn").addEventListener("click", deleteSelected);
+    $("#autoColorBtn").addEventListener("click", autoColorSelected);
+    $("#exportBtn").addEventListener("click", exportJson);
+    $("#importBtn").addEventListener("click", () => fileInput.click());
+    $("#saveNowBtn").addEventListener("click", () => saveState(true));
+    $("#resetBtn").addEventListener("click", resetAll);
+    $("#helpBtn").addEventListener("click", () => helpBox.classList.toggle("hidden"));
+    $("#panelBtn").addEventListener("click", () => sidePanel.classList.toggle("open"));
+
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files?.[0];
+      if (file) importJson(file);
+    });
+
+    searchInput.addEventListener("input", () => performSearch(searchInput.value));
+
+    searchInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      const matches = performSearch(searchInput.value);
+      if (matches.length) {
+        applySelection(matches[0], false);
+        focusSelected(true);
+      }
+    });
+
+    titleInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        saveSelectedEdits();
+      }
+    });
+
+    window.addEventListener("keydown", (event) => {
+      const tag = document.activeElement?.tagName;
+      const typing = tag === "INPUT" || tag === "TEXTAREA";
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        saveSelectedEdits();
+        return;
+      }
+
+      if (typing) return;
+
+      if (event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        addNode(selectedId);
+      } else if (event.key === "/") {
+        event.preventDefault();
+        searchInput.focus();
+      } else if (event.key === "Delete") {
+        deleteSelected();
+      } else if (event.key.toLowerCase() === "f") {
+        focusSelected(true);
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    window.addEventListener("beforeunload", () => saveState());
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+
+      const time = performance.now() * 0.001;
+      keyLight.position.x = Math.cos(time * 0.22) * 75;
+      keyLight.position.z = Math.sin(time * 0.22) * 75;
+
+      updateConnections();
+      renderer.render(scene, camera);
+      labelRenderer.render(scene, camera);
+    }
+  </script>
+</body>
+</html>
